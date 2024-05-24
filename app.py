@@ -1,31 +1,47 @@
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
+import requests
+from flask_oauthlib.client import OAuth
 
 app = Flask(__name__)
 
-# Generate a random secret key for production
-app.config['SECRET_KEY'] = os.urandom(24)
-
-# Or, use a fixed secret key for development (less secure)
-# app.config['SECRET_KEY'] = 'your_very_secret_key'
-
-# SQLite database URI
+# Configuration
+app.config['SECRET_KEY'] = os.urandom(24)  # For production, generate a random secret key
+# app.config['SECRET_KEY'] = 'your_very_secret_key'  # For development (less secure)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
+
+# Initialize extensions
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+oauth = OAuth(app)
 
+# Kakao OAuth configuration
+kakao = oauth.remote_app(
+    'kakao',
+    consumer_key='9c07f6b878771ada9fb8d71b5d5c996f',
+    consumer_secret='qVV3iN4OMBM3uj9ZBQfnhbIBAlvKdWGP',
+    request_token_params={'scope': ''},
+    base_url='https://kapi.kakao.com/v2/user/me',
+    request_token_url=None,
+    access_token_method='POST',
+    access_token_url='https://kauth.kakao.com/oauth/token',
+    authorize_url='https://kauth.kakao.com/oauth/authorize',
+)
+
+# Models
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(150), nullable=False)
+    kakao_id = db.Column(db.String(150), unique=True, nullable=True)
     items = db.relationship('Item', foreign_keys='Item.user_id', backref='owner', lazy=True)
 
 class Item(db.Model):
@@ -40,9 +56,21 @@ class Item(db.Model):
     bidder_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     bidder = db.relationship('User', foreign_keys=[bidder_id], backref='bids')
 
+# User loader callback for Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# Routes
+@app.route('/login')
+def login():
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -57,23 +85,37 @@ def register():
         return redirect(url_for('login'))
     return render_template('register.html')
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password, password):
-            login_user(user)
-            return redirect(url_for('index'))
-        flash('Login Unsuccessful. Please check your credentials')
-    return render_template('login.html')
+@app.route('/kakao_login')
+def kakao_login():
+    return kakao.authorize(callback=url_for('kakao_authorized', _external=True))
 
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('login'))
+@app.route('/kakao_authorized')
+def kakao_authorized():
+    response = kakao.authorized_response()
+    if response is None or response.get('access_token') is None:
+        flash('Access denied: reason={} error={}'.format(
+            request.args['error_reason'],
+            request.args['error_description']
+        ))
+        return redirect(url_for('register'))
+
+    session['kakao_token'] = (response['access_token'], '')
+    me = kakao.get('https://kapi.kakao.com/v2/user/me')
+    kakao_id = str(me.data['id'])
+    username = me.data['kakao_account']['profile']['nickname']
+
+    user = User.query.filter_by(kakao_id=kakao_id).first()
+    if user is None:
+        user = User(username=username, kakao_id=kakao_id)
+        db.session.add(user)
+        db.session.commit()
+
+    login_user(user, remember=True)
+    return redirect(url_for('index'))
+
+@kakao.tokengetter
+def get_kakao_oauth_token():
+    return session.get('kakao_token')
 
 @app.route('/')
 @login_required

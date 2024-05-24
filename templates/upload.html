@@ -1,16 +1,107 @@
 <!doctype html>
 <html>
-<head><title>Upload Item</title></head>
+<head>
+    <title>Upload Item</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            width: 300px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            box-shadow: 2px 2px 12px #aaa;
+        }
+        .container h2 {
+            text-align: center;
+        }
+        .container form {
+            display: flex;
+            flex-direction: column;
+        }
+        .container form input,
+        .container form textarea,
+        .container form button {
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .container form textarea {
+            height: 100px;
+            resize: none;
+        }
+        .container form input[type="file"] {
+            padding: 3px;
+        }
+        .container form button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .container form button:hover {
+            background-color: #45a049;
+        }
+        .container form a {
+            text-align: center;
+            display: block;
+            margin-top: 10px;
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .container form a:hover {
+            text-decoration: underline;
+        }
+        .container .field-container {
+            border: 1px solid #000;
+            margin-bottom: 10px;
+            text-align: center;
+            padding: 10px;
+        }
+        .container .field-container input[type="file"],
+        .container .field-container input[type="text"],
+        .container .field-container input[type="number"],
+        .container .field-container textarea {
+            border: none;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+        }
+        .container .field-container .field-label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
 <body>
-    <h2>Upload Item</h2>
-    <form method="POST" enctype="multipart/form-data">
-        <input type="text" name="name" placeholder="Item Name" required>
-        <textarea name="description" placeholder="Item Description"></textarea>
-        <input type="file" name="image" required>
-        <input type="datetime-local" name="end_time" required>
-        <input type="number" step="0.01" name="buy_now_price" placeholder="Buy Now Price" required>
-        <input type="submit" value="Upload">
-    </form>
-    <a href="{{ url_for('index') }}">Back to Home</a>
+    <div class="container">
+        <h2>Upload Item</h2>
+        <form method="POST" enctype="multipart/form-data">
+            <div class="field-container">
+                <span class="field-label">경매 기간</span>
+                <input type="datetime-local" name="end_time" required>
+            </div>
+            <div class="field-container">
+                <span class="field-label">사진 등록</span>
+                <input type="file" name="image" required>
+            </div>
+            <div class="field-container">
+                <span class="field-label">설명 등록</span>
+                <textarea name="description" placeholder="Item Description"></textarea>
+            </div>
+            <div class="field-container">
+                <span class="field-label">최소 입찰가 지정</span>
+                <input type="number" step="0.01" name="starting_bid_price" placeholder="Starting Bid Price">
+            </div>
+            <div class="field-container">
+                <span class="field-label">즉시 구매가 지정</span>
+                <input type="number" step="0.01" name="buy_now_price" placeholder="Buy Now Price" required>
+            </div>
+            <button type="submit">등록하기</button>
+        </form>
+        <a href="{{ url_for('index') }}">Back to Home</a>
+    </div>
 </body>
 </html>
