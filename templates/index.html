@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+    <title>Home</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #000;
+        }
+        .items-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px;
+        }
+        .item {
+            border: 1px solid #000;
+            width: calc(33.333% - 20px);
+            box-sizing: border-box;
+            padding: 10px;
+        }
+        .item img {
+            width: 100%;
+            height: auto;
+            cursor: pointer;
+        }
+        .item-details {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .item-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .register-button {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background-color: #f0f0f0;
+            border: 1px solid #000;
+            cursor: pointer;
+        }
+        .buy-now-button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #f0f0f0;
+            border: 1px solid #000;
+            cursor: pointer;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>닉네임: {{ current_user.username }}</div>
+        <div>지갑 잔액</div>
+    </div>
+    <div class="items-container">
+        {% for item in items %}
+            <div class="item" data-id="{{ item.id }}" data-end-time="{{ item.end_time.isoformat() }}">
+                <div class="item-details">
+                    <span>{{ item.owner.username }}</span>
+                    <span id="time-remaining-{{ item.id }}">Loading...</span>
+                </div>
+                <a href="{{ url_for('item_detail', item_id=item.id) }}">
+                    <img src="{{ url_for('static', filename='uploads/' + item.image) }}" alt="{{ item.name }}">
+                </a>
+                <div class="item-actions">
+                    <span>현재 입찰가: {{ item.current_bid if item.current_bid else 'None' }}</span>
+                    <span>즉시 구매가: {{ item.buy_now_price }}</span>
+                </div>
+                <div class="buy-now-button">
+                    <a href="{{ url_for('buy_now', item_id=item.id) }}">즉시 구매</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <button class="register-button" onclick="window.location.href='{{ url_for('upload') }}'">경매 등록</button>
+    <script>
+        function updateRemainingTime() {
+            const items = document.querySelectorAll('.item');
+            items.forEach(item => {
+                const endTime = new Date(item.getAttribute('data-end-time')).getTime();
+                const now = new Date().getTime();
+                const distance = endTime - now;
+                
+                if (distance < 0) {
+                    item.querySelector(`#time-remaining-${item.getAttribute('data-id')}`).innerText = "Expired";
+                    return;
+                }
+                
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                
+                const timeRemaining = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+                
+                item.querySelector(`#time-remaining-${item.getAttribute('data-id')}`).innerText = timeRemaining;
+            });
+        }
+
+        setInterval(updateRemainingTime, 1000);
+        updateRemainingTime(); // Initial call to set the times immediately
+    </script>
+</body>
+</html>
